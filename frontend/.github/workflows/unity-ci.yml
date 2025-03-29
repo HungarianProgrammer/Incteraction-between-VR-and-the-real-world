@@ -1,0 +1,29 @@
+name: Unity Frontend CI - Run Tests
+
+on:
+  push:
+    branches:
+      - test-branch
+  pull_request:
+    branches:
+      - test-branch
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Build Docker Image
+        run: docker build -t unity-test .
+
+      - name: Run Unity Tests in Docker
+        run: docker run --rm unity-test
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: Unity-Test-Results
+          path: TestResults.xml
+
