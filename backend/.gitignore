@@ -1,0 +1,55 @@
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment
+venv/
+env/
+ENV/
+.env/
+
+# PyCharm/VS Code/IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Flask specific
+instance/
+.webassets-cache
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Logs
+*.log
+logs/
+
+# Mosquitto data
+mosquitto/data/
+mosquitto/log/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Environment variables
+.env
+
+# Local configuration
+config.local.py
+
+# Jupyter Notebook
+.ipynb_checkpoints
