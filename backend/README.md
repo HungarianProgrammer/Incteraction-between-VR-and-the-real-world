@@ -9,6 +9,9 @@ This project provides a Flask backend that bridges Virtual Reality experiences w
 - Supports temperature and humidity sensor data
 - Light control functionality (on/off)
 - Motion control with direction and angle settings
+- Persistent database storage for temperature and humidity readings
+- Historical data querying with time range filtering
+- Statistics and aggregation of sensor data
 - Containerized with Docker for easy deployment
 
 ## Setup and Installation
@@ -52,6 +55,7 @@ The application can be configured using the following environment variables:
 - `BROKER_PORT`: MQTT broker port (default: 9001 for WebSockets)
 - `USE_WEBSOCKETS`: Whether to use WebSockets for MQTT communication (default: true)
 - `FLASK_ENV`: Application environment (development or production)
+- `DATABASE_URI`: Database connection string (default: sqlite:///iot_data.db)
 
 ## API Endpoints
 
@@ -60,7 +64,10 @@ The application can be configured using the following environment variables:
 
 ### Sensor Data
 - `GET /api/mqtt/temperature` - Get the latest temperature reading
+- `GET /api/mqtt/temperature/history` - Get historical temperature readings
 - `GET /api/mqtt/humidity` - Get the latest humidity reading
+- `GET /api/mqtt/humidity/history` - Get historical humidity readings
+- `GET /api/mqtt/stats` - Get statistics about stored sensor data
 
 ### Device Control
 - `GET /api/mqtt/light` - Get the current light status
@@ -77,3 +84,30 @@ The application can be configured using the following environment variables:
 - `sensors/humidity` - Humidity sensor data
 - `light` - Light control commands
 - `motion` - Motion control commands
+
+## Database Schema
+
+The application uses SQLAlchemy ORM with the following models:
+
+### TemperatureData
+- `id` (Integer, primary key)
+- `value` (Float) - Temperature value in degrees Celsius
+- `timestamp` (DateTime) - When the reading was taken
+
+### HumidityData
+- `id` (Integer, primary key)
+- `value` (Float) - Humidity percentage value
+- `timestamp` (DateTime) - When the reading was taken
+
+## Historical Data Queries
+
+The temperature and humidity history endpoints accept the following query parameters:
+
+- `limit` (default: 100) - Maximum number of records to return
+- `start_time` (optional) - Unix timestamp for the start of the time range
+- `end_time` (optional) - Unix timestamp for the end of the time range
+
+Example:
+```
+GET /api/mqtt/temperature/history?limit=50&start_time=1620000000&end_time=1620100000
+```

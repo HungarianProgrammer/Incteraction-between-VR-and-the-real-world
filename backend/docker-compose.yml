@@ -13,8 +13,22 @@ services:
       - BROKER_ADDRESS=mosquitto
       - BROKER_PORT=9001
       - USE_WEBSOCKETS=true
+      - DATABASE_URI=sqlite+pysqlite:///:memory:?uri=true&mode=ro&cache=shared&uri=file:/sqlite/iot_data.db
+    volumes:
+      - sqlite-data:/sqlite
     depends_on:
       - mosquitto
+      - sqlite
+    networks:
+      - vr-iot-network
+
+  sqlite:
+    image: keinos/sqlite3:latest
+    container_name: vr-iot-sqlite
+    restart: always
+    volumes:
+      - sqlite-data:/data
+    command: /bin/sh -c "cd /data && sqlite3 iot_data.db 'PRAGMA journal_mode=WAL;' || true"
     networks:
       - vr-iot-network
 
@@ -35,3 +49,7 @@ services:
 networks:
   vr-iot-network:
     driver: bridge
+
+volumes:
+  sqlite-data:
+    driver: local

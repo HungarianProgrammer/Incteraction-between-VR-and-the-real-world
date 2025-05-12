@@ -1,7 +1,9 @@
 import time
+from datetime import datetime
 from flask import jsonify, current_app, request
 import paho.mqtt.client as mqtt
 from . import mqtt_bp
+from models import db, TemperatureData, HumidityData
 
 # Global variables to store the latest sensor data
 temperature_data = {"value": 0, "timestamp": 0}
@@ -82,10 +84,31 @@ def on_message(client, userdata, msg):
             temperature_data["value"] = value
             temperature_data["timestamp"] = current_time
             subscriptions["temperature"] = True
+            
+            # Store in database
+            try:
+                new_temp = TemperatureData(value=value, timestamp=datetime.utcfromtimestamp(current_time))
+                db.session.add(new_temp)
+                db.session.commit()
+                print(f"Temperature data stored in database: {value}°C")
+            except Exception as e:
+                print(f"Error storing temperature data: {str(e)}")
+                db.session.rollback()
+                
         elif topic == "sensors/humidity":
             humidity_data["value"] = value
             humidity_data["timestamp"] = current_time
             subscriptions["humidity"] = True
+            
+            # Store in database
+            try:
+                new_humidity = HumidityData(value=value, timestamp=datetime.utcfromtimestamp(current_time))
+                db.session.add(new_humidity)
+                db.session.commit()
+                print(f"Humidity data stored in database: {value}%")
+            except Exception as e:
+                print(f"Error storing humidity data: {str(e)}")
+                db.session.rollback()
             
         connection_status["last_message"] = current_time
         print(f"Received message on topic {topic}: {payload}")
@@ -124,6 +147,41 @@ def get_temperature():
         "timestamp": temperature_data["timestamp"]
     }), 200
 
+@mqtt_bp.route('/temperature/history', methods=['GET'])
+def get_temperature_history():
+    """Endpoint to get historical temperature data"""
+    try:
+        # Get optional query parameters
+        limit = request.args.get('limit', default=100, type=int)
+        start_time = request.args.get('start_time', default=None, type=float)
+        end_time = request.args.get('end_time', default=None, type=float)
+        
+        # Build the query
+        query = TemperatureData.query
+        
+        # Apply time filters if provided
+        if start_time:
+            start_datetime = datetime.utcfromtimestamp(start_time)
+            query = query.filter(TemperatureData.timestamp >= start_datetime)
+            
+        if end_time:
+            end_datetime = datetime.utcfromtimestamp(end_time)
+            query = query.filter(TemperatureData.timestamp <= end_datetime)
+        
+        # Order by timestamp descending and limit results
+        temperature_records = query.order_by(TemperatureData.timestamp.desc()).limit(limit).all()
+        
+        # Convert to list of dictionaries
+        data = [record.to_dict() for record in temperature_records]
+        
+        return jsonify({
+            "count": len(data),
+            "data": data
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @mqtt_bp.route('/humidity', methods=['GET'])
 def get_humidity():
     """Endpoint to get the latest humidity data"""
@@ -134,6 +192,41 @@ def get_humidity():
         "humidity": humidity_data["value"],
         "timestamp": humidity_data["timestamp"]
     }), 200
+
+@mqtt_bp.route('/humidity/history', methods=['GET'])
+def get_humidity_history():
+    """Endpoint to get historical humidity data"""
+    try:
+        # Get optional query parameters
+        limit = request.args.get('limit', default=100, type=int)
+        start_time = request.args.get('start_time', default=None, type=float)
+        end_time = request.args.get('end_time', default=None, type=float)
+        
+        # Build the query
+        query = HumidityData.query
+        
+        # Apply time filters if provided
+        if start_time:
+            start_datetime = datetime.utcfromtimestamp(start_time)
+            query = query.filter(HumidityData.timestamp >= start_datetime)
+            
+        if end_time:
+            end_datetime = datetime.utcfromtimestamp(end_time)
+            query = query.filter(HumidityData.timestamp <= end_datetime)
+        
+        # Order by timestamp descending and limit results
+        humidity_records = query.order_by(HumidityData.timestamp.desc()).limit(limit).all()
+        
+        # Convert to list of dictionaries
+        data = [record.to_dict() for record in humidity_records]
+        
+        return jsonify({
+            "count": len(data),
+            "data": data
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @mqtt_bp.route('/light', methods=['GET'])
 def get_light_status():
@@ -278,3 +371,63 @@ def control_motion():
             return jsonify({"success": False, "error": f"Failed to publish with code {result.rc}"}), 500
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+@mqtt_bp.route('/stats', methods=['GET'])
+def get_database_stats():
+    """Endpoint to get statistics about the stored sensor data"""
+    try:
+        # Count records
+        temperature_count = TemperatureData.query.count()
+        humidity_count = HumidityData.query.count()
+        
+        # Get min, max, avg for temperature if records exist
+        temp_stats = {}
+        if temperature_count > 0:
+            temp_min = db.session.query(db.func.min(TemperatureData.value)).scalar()
+            temp_max = db.session.query(db.func.max(TemperatureData.value)).scalar()
+            temp_avg = db.session.query(db.func.avg(TemperatureData.value)).scalar()
+            
+            # Get the newest and oldest record timestamps
+            newest_temp = db.session.query(db.func.max(TemperatureData.timestamp)).scalar()
+            oldest_temp = db.session.query(db.func.min(TemperatureData.timestamp)).scalar()
+            
+            temp_stats = {
+                "min": temp_min,
+                "max": temp_max,
+                "avg": temp_avg,
+                "first_record": oldest_temp.timestamp() if oldest_temp else None,
+                "last_record": newest_temp.timestamp() if newest_temp else None
+            }
+        
+        # Get min, max, avg for humidity if records exist
+        humidity_stats = {}
+        if humidity_count > 0:
+            humidity_min = db.session.query(db.func.min(HumidityData.value)).scalar()
+            humidity_max = db.session.query(db.func.max(HumidityData.value)).scalar()
+            humidity_avg = db.session.query(db.func.avg(HumidityData.value)).scalar()
+            
+            # Get the newest and oldest record timestamps
+            newest_humidity = db.session.query(db.func.max(HumidityData.timestamp)).scalar()
+            oldest_humidity = db.session.query(db.func.min(HumidityData.timestamp)).scalar()
+            
+            humidity_stats = {
+                "min": humidity_min,
+                "max": humidity_max,
+                "avg": humidity_avg,
+                "first_record": oldest_humidity.timestamp() if oldest_humidity else None,
+                "last_record": newest_humidity.timestamp() if newest_humidity else None
+            }
+        
+        return jsonify({
+            "temperature": {
+                "count": temperature_count,
+                "stats": temp_stats
+            },
+            "humidity": {
+                "count": humidity_count,
+                "stats": humidity_stats
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

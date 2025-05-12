@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from blueprints.mqtt import mqtt_bp
 from blueprints.mqtt.routes import initialize_mqtt_client
+from models import db
 
 def create_app(test_config=None):
     app = Flask(__name__)
@@ -13,6 +14,15 @@ def create_app(test_config=None):
         BROKER_PORT=int(os.environ.get('BROKER_PORT', 9001)),
         USE_WEBSOCKETS=os.environ.get('USE_WEBSOCKETS', 'true').lower() == 'true',
         DEBUG=os.environ.get('FLASK_DEBUG', 'true').lower() == 'true',
+        # Database configuration
+        SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URI', 'sqlite:///iot_data.db'),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        # Add connect options for containerized SQLite
+        SQLALCHEMY_ENGINE_OPTIONS={
+            'connect_args': {
+                'check_same_thread': False  # Allow multiple threads to access SQLite
+            }
+        }
     )
     
     # Override config with test config if provided
@@ -21,6 +31,17 @@ def create_app(test_config=None):
         
     # Setup CORS
     CORS(app, origins=os.environ.get('CORS_ORIGINS', "*"))
+    
+    # Initialize the database
+    db.init_app(app)
+    
+    # Create all database tables
+    with app.app_context():
+        try:
+            db.create_all()
+            print("Database tables created successfully")
+        except Exception as e:
+            print(f"Error creating database tables: {str(e)}")
     
     # Register the MQTT blueprint
     app.register_blueprint(mqtt_bp, url_prefix='/api/mqtt')
