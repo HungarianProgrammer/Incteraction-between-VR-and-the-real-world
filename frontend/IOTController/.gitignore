@@ -1,0 +1,49 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+
+# User-specific settings
+UserSettings/
+.vscode/
+.idea/
+
+# Unity cache
+sysinfo.txt
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Auto-generated VS/JetBrains Rider project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+
+# Crash logs
+*.pidb
+*.booproj
+
+# Backup files
+*.bak
+*.old
+*.orig
+*.swp
+
+# Unity Asset meta
+*.pidb.meta
+
+# Builds (optional, keep only if you want to share builds)
+Builds/
+
+# Ignore Visual Studio Code workspace settings (optional)
+.vscode/
